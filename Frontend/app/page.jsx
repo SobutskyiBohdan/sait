@@ -13,7 +13,7 @@ export default function HomePage() {
     fromYear: "",
     toYear: "",
     page: 1,
-    limit: 12,
+    limit: 20, // Changed from 12 to 20
   })
   const [showFilters, setShowFilters] = useState(false)
 
@@ -35,11 +35,11 @@ export default function HomePage() {
       fromYear: "",
       toYear: "",
       page: 1,
-      limit: 12,
+      limit: 20, // Changed from 12 to 20
     })
   }
 
-  // Розрахунок загальної кількості сторінок
+  // Calculate total pages
   const totalPages = Math.ceil((data?.total || 0) / searchParams.limit)
 
   if (isLoading)
@@ -241,12 +241,8 @@ export default function HomePage() {
                 ))}
               </div>
 
-              {/* Використання компонента Pagination */}
-              <Pagination 
-                currentPage={searchParams.page}
-                totalPages={totalPages}
-                onPageChange={handlePageChange}
-              />
+              {/* Pagination */}
+              <Pagination currentPage={searchParams.page} totalPages={totalPages} onPageChange={handlePageChange} />
             </>
           ) : (
             /* No Results */

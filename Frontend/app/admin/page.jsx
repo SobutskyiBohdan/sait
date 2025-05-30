@@ -5,15 +5,19 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Plus, Edit, Trash2, Users, BookOpen } from "lucide-react"
 import { useAppSelector } from "@/lib/hooks"
-import { useGetBooksQuery } from "@/lib/api/booksApi"
+import { useGetBooksQuery, useDeleteBookMutation } from "@/lib/api/booksApi"
 import Breadcrumb from "@/components/breadcrumb"
 import Pagination from "@/components/pagination"
+import ConfirmDialog from "@/components/confirm-dialog"
+import toast from "react-hot-toast"
 
 export default function AdminPage() {
   const { user, isAuthenticated } = useAppSelector((state) => state.auth)
   const router = useRouter()
   const [currentPage, setCurrentPage] = useState(1)
-  const { data: booksData, isLoading } = useGetBooksQuery({ page: currentPage, limit: 10 })
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, book: null })
+  const { data: booksData, isLoading } = useGetBooksQuery({ page: currentPage, limit: 20 })
+  const [deleteBookMutation, { isLoading: isDeleting }] = useDeleteBookMutation()
 
   // Перевірка доступу до адмін панелі
   useEffect(() => {
@@ -28,6 +32,30 @@ export default function AdminPage() {
     }
   }, [isAuthenticated, user, router])
 
+  const handleDeleteClick = (book) => {
+    setDeleteConfirm({
+      isOpen: true,
+      book: book,
+    })
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirm.book) return
+
+    try {
+      await deleteBookMutation(deleteConfirm.book.id).unwrap()
+      toast.success(`Book "${deleteConfirm.book.title}" deleted successfully!`)
+      setDeleteConfirm({ isOpen: false, book: null })
+    } catch (error) {
+      console.error("Delete book error:", error)
+      toast.error("Failed to delete book. Please try again.")
+    }
+  }
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirm({ isOpen: false, book: null })
+  }
+
   // Показуємо завантаження поки перевіряємо права доступу
   if (!isAuthenticated || !user?.is_staff) {
     return (
@@ -41,7 +69,7 @@ export default function AdminPage() {
   }
 
   // Розрахунок загальної кількості сторінок
-  const totalPages = Math.ceil((booksData?.total || 0) / 10)
+  const totalPages = Math.ceil((booksData?.total || 0) / 20)
 
   return (
     <div className="px-6 py-12">
@@ -169,7 +197,10 @@ export default function AdminPage() {
                             >
                               <Edit className="w-4 h-4" />
                             </Link>
-                            <button className="p-2 text-red-500 hover:text-red-700 transition-colors">
+                            <button
+                              onClick={() => handleDeleteClick(book)}
+                              className="p-2 text-red-500 hover:text-red-700 transition-colors"
+                            >
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -180,14 +211,9 @@ export default function AdminPage() {
                 </table>
               </div>
 
-              {/* Додана пагінація всередині умови */}
               {totalPages > 1 && (
                 <div className="mt-8">
-                  <Pagination 
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={setCurrentPage}
-                  />
+                  <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
                 </div>
               )}
             </>
@@ -207,6 +233,14 @@ export default function AdminPage() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title="Delete Book"
+        message={`Are you sure you want to delete "${deleteConfirm.book?.title}"? This action cannot be undone.`}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
     </div>
   )
 }

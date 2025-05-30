@@ -22,11 +22,8 @@ export const booksApi = createApi({
       headers.set("Accept", "application/json")
       return headers
     },
-    // Додаємо mode для CORS
     mode: "cors",
-    // Додаємо credentials
     credentials: "include",
-    // Додаємо timeout
     timeout: 15000,
   }),
   tagTypes: ["Book", "Favorites"],
@@ -37,7 +34,7 @@ export const booksApi = createApi({
           url: "/scraping/book_list/",
           params: {
             ...params,
-            // Видаляємо пусті параметри
+            limit: Math.min(params?.limit || 20, 20), // Максимум 20 книжок на сторінку
             ...(params?.title && { title: params.title }),
             ...(params?.genre && { genre: params.genre }),
             ...(params?.fromYear && { fromYear: params.fromYear }),
@@ -45,7 +42,6 @@ export const booksApi = createApi({
           },
         }
 
-        // Debug в режимі розробки
         if (process.env.NODE_ENV === "development") {
           console.log("📚 Books API Request:", requestConfig)
           console.log("🌐 Full URL:", `${process.env.NEXT_PUBLIC_API_URL}/scraping/book_list/`)
@@ -56,38 +52,33 @@ export const booksApi = createApi({
       transformResponse: (response, meta, arg) => {
         console.log("📚 Books API Response:", response)
 
-        // Якщо відповідь має структуру Django REST framework pagination
         if (response && typeof response === "object" && response.results) {
           return {
             books: response.results || [],
             total: response.count || 0,
             page: arg?.page || 1,
-            limit: arg?.limit || 12,
+            limit: Math.min(arg?.limit || 20, 20),
           }
         }
 
-        // Якщо відповідь - це просто масив книг
         if (Array.isArray(response)) {
           return {
             books: response,
             total: response.length,
             page: arg?.page || 1,
-            limit: arg?.limit || 12,
+            limit: Math.min(arg?.limit || 20, 20),
           }
         }
 
-        // Якщо відповідь вже в очікуваному форматі
         return {
           books: response?.books || response || [],
           total: response?.total || response?.count || 0,
           page: arg?.page || 1,
-          limit: arg?.limit || 12,
+          limit: Math.min(arg?.limit || 20, 20),
         }
       },
       transformErrorResponse: (response, meta, arg) => {
         console.error("🚨 Books API Error:", response)
-        console.error("🚨 Meta:", meta)
-        console.error("🚨 Args:", arg)
         return response
       },
       providesTags: ["Book"],
@@ -100,19 +91,66 @@ export const booksApi = createApi({
       query: (bookId) => `/scraping/book_detail/${bookId}/recommended/`,
       providesTags: ["Book"],
     }),
+    // Admin endpoints
+    createBook: builder.mutation({
+      query: (bookData) => ({
+        url: "/scraping/book_create/",
+        method: "POST",
+        body: bookData,
+      }),
+      invalidatesTags: ["Book"],
+    }),
+    updateBook: builder.mutation({
+      query: ({ id, ...bookData }) => ({
+        url: `/scraping/book_update/${id}/`,
+        method: "PUT",
+        body: bookData,
+      }),
+      invalidatesTags: ["Book"],
+    }),
+    deleteBook: builder.mutation({
+      query: (id) => ({
+        url: `/scraping/book_delete/${id}/`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Book"],
+    }),
+    // Favorites endpoints
     getFavorites: builder.query({
-      query: () => "/scraping/book_favorites/", // Update to match your actual backend endpoint
+      query: () => "/scraping/book_favorites/",
       providesTags: ["Favorites"],
+      transformResponse: (response) => {
+        console.log("❤️ Favorites API Response:", response)
+        // Якщо response це масив книжок
+        if (Array.isArray(response)) {
+          return response
+        }
+        // Якщо response це об'єкт з results
+        if (response && response.results) {
+          return response.results
+        }
+        // Якщо response це об'єкт з books
+        if (response && response.books) {
+          return response.books
+        }
+        return []
+      },
       transformErrorResponse: (response) => {
         console.error("❌ Get Favorites API Error:", response)
         return response
       },
     }),
     addToFavorites: builder.mutation({
-      query: (bookId) => ({
-        url: `/scraping/book_favorites_add/`, // Update to match your actual backend endpoint
-        method: "POST",
-      }),
+      query: (bookId) => {
+        console.log("❤️ Adding to favorites, bookId:", bookId)
+        return {
+          url: `/scraping/book_favorites_add/`,
+          method: "POST",
+          body: {
+            book_id: Number.parseInt(bookId, 10), // Переконуємось що це число
+          },
+        }
+      },
       invalidatesTags: ["Favorites"],
       transformErrorResponse: (response) => {
         console.error("❌ Add to Favorites API Error:", response)
@@ -120,10 +158,16 @@ export const booksApi = createApi({
       },
     }),
     removeFromFavorites: builder.mutation({
-      query: (bookId) => ({
-        url: `/scraping/book_favorites_remove/${bookId}/`, // Update to match your actual backend endpoint
-        method: "DELETE",
-      }),
+      query: (bookId) => {
+        console.log("💔 Removing from favorites, bookId:", bookId)
+        return {
+          url: `/scraping/book_favorites_remove/`,
+          method: "POST",
+          body: {
+            book_id: Number.parseInt(bookId, 10), // Переконуємось що це число
+          },
+        }
+      },
       invalidatesTags: ["Favorites"],
       transformErrorResponse: (response) => {
         console.error("❌ Remove from Favorites API Error:", response)
@@ -137,6 +181,9 @@ export const {
   useGetBooksQuery,
   useGetBookByIdQuery,
   useGetRecommendedBooksQuery,
+  useCreateBookMutation,
+  useUpdateBookMutation,
+  useDeleteBookMutation,
   useGetFavoritesQuery,
   useAddToFavoritesMutation,
   useRemoveFromFavoritesMutation,

@@ -6,19 +6,22 @@ import { ArrowLeft, Upload, Star } from "lucide-react"
 import Link from "next/link"
 import toast from "react-hot-toast"
 import { useAppSelector } from "@/lib/hooks"
+import { useCreateBookMutation } from "@/lib/api/booksApi"
 import Breadcrumb from "@/components/breadcrumb"
 
 export default function AddBookPage() {
   const { user, isAuthenticated } = useAppSelector((state) => state.auth)
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
+  const [createBook, { isLoading }] = useCreateBookMutation()
   const [formData, setFormData] = useState({
     title: "",
+    author: "",
     year: "",
     description: "",
     price: "",
     inStock: "",
     rating: 0,
+    genre: "",
     image: null,
   })
 
@@ -30,17 +33,21 @@ export default function AddBookPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setIsLoading(true)
 
     try {
-      // Here you would make API call to create book
-      // const result = await createBook(formData)
+      const bookData = {
+        ...formData,
+        year: Number.parseInt(formData.year) || new Date().getFullYear(),
+        inStock: Number.parseInt(formData.inStock) || 0,
+        rating: formData.rating || 0,
+      }
+
+      await createBook(bookData).unwrap()
       toast.success("Book added successfully!")
       router.push("/admin")
     } catch (error) {
+      console.error("Create book error:", error)
       toast.error("Failed to add book. Please try again.")
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -117,14 +124,41 @@ export default function AddBookPage() {
                   </div>
 
                   <div>
-                    <label className="block text-brown-secondary font-semibold mb-2">Publication Year</label>
+                    <label className="block text-brown-secondary font-semibold mb-2">Author</label>
                     <input
                       type="text"
+                      placeholder="Enter author name"
+                      value={formData.author}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, author: e.target.value }))}
+                      className="w-full border-2 border-brown-secondary rounded-lg px-4 py-3 bg-white search-input focus:outline-none focus:border-brown-primary"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-brown-secondary font-semibold mb-2">Publication Year</label>
+                    <input
+                      type="number"
                       placeholder="Enter publication year"
                       value={formData.year}
                       onChange={(e) => setFormData((prev) => ({ ...prev, year: e.target.value }))}
                       className="w-full border-2 border-brown-secondary rounded-lg px-4 py-3 bg-white search-input focus:outline-none focus:border-brown-primary"
                       required
+                      min="1900"
+                      max="2024"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-brown-secondary font-semibold mb-2">Genre</label>
+                    <input
+                      type="text"
+                      placeholder="Enter genre"
+                      value={formData.genre}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, genre: e.target.value }))}
+                      className="w-full border-2 border-brown-secondary rounded-lg px-4 py-3 bg-white search-input focus:outline-none focus:border-brown-primary"
                     />
                   </div>
                 </div>

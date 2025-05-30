@@ -28,14 +28,14 @@ export default function AdminUsersPage() {
 
     // Тут буде запит до API для отримання списку користувачів
     // Поки що використовуємо моковані дані
-    setTimeout(() => {
-      setUsers([
-        { id: 1, username: "admin", email: "admin@example.com", is_staff: true, date_joined: "2023-01-01" },
-        { id: 2, username: "user1", email: "user1@example.com", is_staff: false, date_joined: "2023-02-15" },
-        { id: 3, username: "user2", email: "user2@example.com", is_staff: false, date_joined: "2023-03-20" },
-      ])
-      setIsLoading(false)
-    }, 1000)
+    // setTimeout(() => {
+    //   setUsers([
+    //     { id: 1, username: "admin", email: "admin@example.com", is_staff: true, date_joined: "2023-01-01" },
+    //     { id: 2, username: "user1", email: "user1@example.com", is_staff: false, date_joined: "2023-02-15" },
+    //     { id: 3, username: "user2", email: "user2@example.com", is_staff: false, date_joined: "2023-03-20" },
+    //   ])
+    //   setIsLoading(false)
+    // }, 1000)
   }, [isAuthenticated, user, router])
 
   const handleDeleteUser = (userId, username) => {

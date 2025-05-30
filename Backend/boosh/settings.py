@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-zezqpjjj1hwr&8!s!tj2mux=jpa#6s*n+e-lbd6nfezi&7v8(&
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '52.28.23.139', '[::1]', 'kubernetes.docker.internal']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '52.28.23.139', 'book-shelf.pp.ua', '[::1]', 'kubernetes.docker.internal']
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',  # Стандартний бекенд
@@ -59,7 +59,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",
     'http://52.28.23.139:3000',
     'http://52.28.23.139:8000',
-    'http://52.28.23.139:80'
+    'http://52.28.23.139:80',
+    'https://book-shelf.pp.ua',
+    'https://book-shelf.pp.ua:8000'
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -124,7 +126,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'postgres',
         'USER': 'postgres',
-        'PASSWORD': 'postgres',
+        'PASSWORD': '210122',
         'HOST': '127.0.0.1',  # або IP адреса сервера
         'PORT': '5432',       # стандартний порт PostgreSQL
     }

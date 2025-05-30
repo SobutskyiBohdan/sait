@@ -8,7 +8,7 @@ import { useAppDispatch } from "@/lib/hooks"
 import { setCredentials } from "@/lib/slices/authSlice"
 import Modal from "./modal"
 
-export default function SignUpModal({ isOpen, onClose }) {
+export default function SignUpModal({ isOpen, onClose, onSwitchToSignIn }) {
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -37,11 +37,11 @@ export default function SignUpModal({ isOpen, onClose }) {
       return
     }
 
-    // Debug information
-    console.log("🔍 Registration Debug Info:")
-    console.log("API URL:", process.env.NEXT_PUBLIC_API_URL)
-    console.log("Form Data:", formData)
-    console.log("Full API URL:", `${process.env.NEXT_PUBLIC_API_URL}/api/register/`)
+    // // Debug information
+    // console.log("🔍 Registration Debug Info:")
+    // console.log("API URL:", process.env.NEXT_PUBLIC_API_URL)
+    // console.log("Form Data:", formData)
+    // console.log("Full API URL:", `${process.env.NEXT_PUBLIC_API_URL}/api/register/`)
 
     try {
       const result = await register(formData).unwrap()
@@ -107,11 +107,6 @@ export default function SignUpModal({ isOpen, onClose }) {
     }
   }
 
-  const handleSignInClick = () => {
-    onClose()
-    router.push("/signin")
-  }
-
   // Test connection function
   const testConnection = async () => {
     try {
@@ -164,7 +159,7 @@ export default function SignUpModal({ isOpen, onClose }) {
           />
         </div>
 
-        {/* Debug section - only show in development */}
+        {/* Debug section - only show in development
         {process.env.NODE_ENV === "development" && (
           <div className="bg-gray-50 rounded-lg p-4 text-sm">
             <p className="text-gray-600 mb-2">🔧 Debug Info:</p>
@@ -173,7 +168,7 @@ export default function SignUpModal({ isOpen, onClose }) {
               Test Connection
             </button>
           </div>
-        )}
+        )} */}
 
         <div className="text-center">
           <button
@@ -187,7 +182,7 @@ export default function SignUpModal({ isOpen, onClose }) {
         <div className="text-center">
           <button
             type="button"
-            onClick={handleSignInClick}
+            onClick={onSwitchToSignIn}
             className="text-brown-secondary hover:text-brown-primary text-lg btn-secondary"
           >
             Already have an account? Sign in

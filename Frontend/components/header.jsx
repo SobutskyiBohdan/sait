@@ -18,21 +18,21 @@ export default function Header() {
   const dispatch = useAppDispatch()
   const { isAuthenticated, user, token, isInitialized } = useAppSelector((state) => state.auth)
 
-  // Використовуємо RTK Query тільки якщо авторизовані та стан ініціалізований
-  const { 
-    data: profileData, 
-    error: profileError, 
+  // Use RTK Query only if authenticated and state is initialized
+  const {
+    data: profileData,
+    error: profileError,
     isLoading: profileLoading,
-    refetch: refetchProfile 
+    refetch: refetchProfile,
   } = useGetProfileQuery(undefined, {
     skip: !isAuthenticated || !token || !isInitialized,
   })
 
-  // Обробляємо помилки профілю
+  // Handle profile errors
   useEffect(() => {
     if (profileError) {
       console.error("🚨 Profile fetch error:", profileError)
-      
+
       if (profileError.status === 401) {
         console.log("🚨 Profile fetch failed with 401, token invalid - logging out...")
         dispatch(logout())
@@ -43,14 +43,14 @@ export default function Header() {
     }
   }, [profileError, dispatch, router])
 
-  // Логуємо дані профілю для дебагу
+  // Log profile data for debugging
   useEffect(() => {
     if (profileData) {
       console.log("👤 Profile data loaded:", profileData)
     }
   }, [profileData])
 
-  // Дебаг стану авторизації
+  // Debug auth state
   useEffect(() => {
     console.log("🔍 Header auth state:", {
       isAuthenticated,
@@ -77,7 +77,7 @@ export default function Header() {
     }
   }
 
-  // Функція для закриття modals та відкриття іншого
+  // Function to close modals and open another
   const handleSwitchModals = (fromSignUp = false) => {
     if (fromSignUp) {
       setIsSignUpModalOpen(false)
@@ -124,22 +124,23 @@ export default function Header() {
           <button onClick={handleUserIconClick} className="group">
             <User className="w-7 h-7 text-brown-secondary group-hover:text-brown-primary transition-colors" />
           </button>
-          
-          {/* Показуємо контент тільки після ініціалізації */}
+
+          {/* Show content only after initialization */}
           {isInitialized && (
             <>
               {isAuthenticated ? (
                 <div className="flex items-center gap-4">
-                  {/* Показуємо admin link якщо користувач є staff */}
+                  {/* Show admin link if user is staff - змінено на admin-panel */}
                   {(user?.is_staff || profileData?.is_staff) && (
                     <Link
                       href="/admin"
                       className="text-brown-secondary font-medium px-4 py-2 rounded-lg hover:bg-brown-secondary hover:text-white transition-all duration-300"
                     >
-                      Admin
+                      Admin Panel
                     </Link>
                   )}
-                  <span className="text-brown-secondary text-sm">
+                  {/* Hide welcome message on mobile devices */}
+                  <span className="text-brown-secondary text-sm hidden md:block">
                     Welcome, {user?.username || profileData?.username}
                   </span>
                   <button
@@ -160,20 +161,18 @@ export default function Header() {
             </>
           )}
 
-          {/* Показуємо індикатор завантаження під час ініціалізації */}
-          {!isInitialized && (
-            <div className="text-brown-secondary text-sm">Loading...</div>
-          )}
+          {/* Show loading indicator during initialization */}
+          {!isInitialized && <div className="text-brown-secondary text-sm">Loading...</div>}
         </div>
       </header>
 
-      <SignUpModal 
-        isOpen={isSignUpModalOpen} 
+      <SignUpModal
+        isOpen={isSignUpModalOpen}
         onClose={() => setIsSignUpModalOpen(false)}
         onSwitchToSignIn={() => handleSwitchModals(true)}
       />
-      <SignInModal 
-        isOpen={isSignInModalOpen} 
+      <SignInModal
+        isOpen={isSignInModalOpen}
         onClose={() => setIsSignInModalOpen(false)}
         onSwitchToSignUp={() => handleSwitchModals(false)}
       />

@@ -9,7 +9,7 @@ import { useAppDispatch } from "@/lib/hooks"
 import { setCredentials } from "@/lib/slices/authSlice"
 import Modal from "./modal"
 
-export default function SignInModal({ isOpen, onClose }) {
+export default function SignInModal({ isOpen, onClose, onSwitchToSignUp }) {
   const [formData, setFormData] = useState({
     usernameOrEmail: "",
     password: "",
@@ -84,11 +84,6 @@ export default function SignInModal({ isOpen, onClose }) {
     }
   }
 
-  const handleSignUpClick = () => {
-    onClose()
-    router.push("/signup")
-  }
-
   // Тестова функція для перевірки з'єднання
   const testConnection = async () => {
     try {
@@ -134,18 +129,6 @@ export default function SignInModal({ isOpen, onClose }) {
           </Link>
         </div>
 
-        {/* Debug section - тільки в режимі розробки */}
-        {/* {process.env.NODE_ENV === "development" && (
-          <div className="bg-gray-50 rounded-lg p-4 text-sm">
-            <p className="text-gray-600 mb-2">🔧 Debug Info:</p>
-            <p className="text-gray-600">API URL: {process.env.NEXT_PUBLIC_API_URL}</p>
-            <p className="text-gray-600">Test credentials: admin / admin123</p>
-            <button type="button" onClick={testConnection} className="mt-2 text-blue-600 hover:text-blue-800 underline">
-              Test Connection
-            </button>
-          </div>
-        )} */}
-
         <div className="text-center">
           <button
             type="submit"
@@ -158,7 +141,7 @@ export default function SignInModal({ isOpen, onClose }) {
         <div className="text-center">
           <button
             type="button"
-            onClick={handleSignUpClick}
+            onClick={onSwitchToSignUp}
             className="text-brown-secondary hover:text-brown-primary text-lg btn-secondary"
           >
             Don't have an account? Sign up

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Heart, Star, ShoppingCart, Eye } from "lucide-react"
+import { Heart, Star, Eye } from "lucide-react"
 import { useAppSelector, useAppDispatch } from "@/lib/hooks"
 import { useAddToFavoritesMutation, useRemoveFromFavoritesMutation } from "@/lib/api/booksApi"
 import { addToFavorites, removeFromFavorites } from "@/lib/slices/favoritesSlice"
@@ -11,10 +11,11 @@ export default function BookCard({ book }) {
   const dispatch = useAppDispatch()
   const { favoriteIds } = useAppSelector((state) => state.favorites)
   const { isAuthenticated } = useAppSelector((state) => state.auth)
-  const [addToFavoritesMutation] = useAddToFavoritesMutation()
-  const [removeFromFavoritesMutation] = useRemoveFromFavoritesMutation()
+  const [addToFavoritesMutation, { isLoading: isAddingToFavorites }] = useAddToFavoritesMutation()
+  const [removeFromFavoritesMutation, { isLoading: isRemovingFromFavorites }] = useRemoveFromFavoritesMutation()
 
   const isFavorite = favoriteIds.includes(book.id)
+  const isUpdatingFavorites = isAddingToFavorites || isRemovingFromFavorites
 
   const handleFavoriteClick = async (e) => {
     e.preventDefault()
@@ -23,6 +24,10 @@ export default function BookCard({ book }) {
     if (!isAuthenticated) {
       toast.error("Please sign in to add favorites")
       return
+    }
+
+    if (isUpdatingFavorites) {
+      return // Prevent multiple clicks while updating
     }
 
     try {
@@ -43,12 +48,11 @@ export default function BookCard({ book }) {
       // Optimistically update UI even if API fails
       if (isFavorite) {
         dispatch(removeFromFavorites(book.id))
+        toast.error("Could not remove from favorites on server, but updated locally")
       } else {
         dispatch(addToFavorites(book.id))
+        toast.error("Could not add to favorites on server, but updated locally")
       }
-
-      // Show a more user-friendly error message
-      toast.error("Could not update favorites on the server, but we've updated it locally")
     }
   }
 
@@ -83,12 +87,16 @@ export default function BookCard({ book }) {
             </Link>
             <button
               onClick={handleFavoriteClick}
-              disabled={!isAuthenticated}
+              disabled={!isAuthenticated || isUpdatingFavorites}
               className={`bg-white/90 backdrop-blur-sm p-3 rounded-full hover:bg-white transition-all duration-300 shadow-lg ${
-                !isAuthenticated ? "opacity-50 cursor-not-allowed" : ""
+                !isAuthenticated || isUpdatingFavorites ? "opacity-50 cursor-not-allowed" : ""
               }`}
             >
-              <Heart className={`w-5 h-5 ${isFavorite ? "fill-red-500 text-red-500" : "text-brown-primary"}`} />
+              {isUpdatingFavorites ? (
+                <div className="w-5 h-5 border-2 border-brown-primary border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Heart className={`w-5 h-5 ${isFavorite ? "fill-red-500 text-red-500" : "text-brown-primary"}`} />
+              )}
             </button>
           </div>
         </div>
@@ -132,19 +140,22 @@ export default function BookCard({ book }) {
           <div className="flex items-center gap-2">
             <button
               onClick={handleFavoriteClick}
-              disabled={!isAuthenticated}
+              disabled={!isAuthenticated || isUpdatingFavorites}
               className={`p-2 rounded-full transition-all duration-300 ${
-                !isAuthenticated ? "opacity-50 cursor-not-allowed" : "hover:bg-red-50 hover:scale-110"
+                !isAuthenticated || isUpdatingFavorites
+                  ? "opacity-50 cursor-not-allowed"
+                  : "hover:bg-red-50 hover:scale-110"
               }`}
             >
-              <Heart
-                className={`w-5 h-5 ${
-                  isFavorite ? "fill-red-500 text-red-500" : "text-brown-secondary hover:text-red-500"
-                }`}
-              />
-            </button>
-            <button className="bg-brown-primary text-white p-2 rounded-full hover:bg-brown-secondary transition-all duration-300 hover:scale-110">
-              <ShoppingCart className="w-5 h-5" />
+              {isUpdatingFavorites ? (
+                <div className="w-5 h-5 border-2 border-brown-primary border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Heart
+                  className={`w-5 h-5 ${
+                    isFavorite ? "fill-red-500 text-red-500" : "text-brown-secondary hover:text-red-500"
+                  }`}
+                />
+              )}
             </button>
           </div>
         </div>
