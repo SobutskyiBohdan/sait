@@ -1,5 +1,6 @@
 import io
 import threading
+import random
 from contextlib import redirect_stdout, redirect_stderr
 
 from django.core.management import call_command
@@ -27,11 +28,13 @@ from rest_framework.mixins import (
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser
 from rest_framework import status, permissions
+from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as django_filters
 
-from .models import Book, ScrapingLog
-from .serializers import BookListSerializer, BookSerializer, ScrapingLogSerializer
+from .models import Book, ScrapingLog, Favorite, Genre
+from .serializers import BookListSerializer, BookSerializer, ScrapingLogSerializer, FavoriteListSerializer, FavoriteCreateSerializer
 
 
 class BookFilter(django_filters.FilterSet):
@@ -79,6 +82,138 @@ class BookQuerysetMixin:
     search_fields = ['title', 'description', 'genre', 'image']
     ordering_fields = ['title', 'created_at']
     ordering = ['-created_at']  
+
+class FavoriteListView(ListAPIView):
+    serializer_class = FavoriteListSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        queryset = Favorite.objects.filter(user=self.request.user).select_related('book', 'book__genre')
+        genre = self.request.query_params.get('genre', None)
+        title = self.request.query_params.get('title', None)
+        search = self.request.query_params.get('search', None)
+        rating = self.request.query_params.get('rating', None)
+
+        if genre:
+            queryset = queryset.filter(book__genre__name__icontains=genre)
+                
+        if title:
+            queryset = queryset.filter(book__title__icontains=title)
+            
+        if rating:
+            try:
+                rating_value = int(rating)
+                if 1 <= rating_value <= 5:
+                    queryset = queryset.filter(book__rating=rating_value)
+            except ValueError:
+                pass
+            
+        if search:
+            queryset = queryset.filter(
+                Q(book__title__icontains=search) | 
+                Q(book__description__icontains=search)
+            )
+        
+        return queryset
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+        
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        
+        active_filters = {}
+        for param in ['genre', 'title', 'rating', 'search']:
+            value = request.query_params.get(param)
+            if value:
+                active_filters[param] = value
+        
+        response_data = {
+            'count': queryset.count(),
+            'active_filters': active_filters,
+            'results': serializer.data
+        }
+        
+        return Response(response_data)
+
+class FavoriteCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, *args, **kwargs):
+        serializer = FavoriteCreateSerializer(data=request.data, context={'request': request})
+        
+        if serializer.is_valid():
+            favorite = serializer.save()
+            response_serializer = FavoriteListSerializer(favorite)
+            return Response(
+                {
+                    'message': 'Book was added to favorites',
+                    'favorite': response_serializer.data
+                }, 
+                status=status.HTTP_201_CREATED
+            )
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class FavoriteRemoveByBookView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def delete(self, request, book_id, *args, **kwargs):
+        try:
+            book = get_object_or_404(Book, id=book_id)
+            favorite = get_object_or_404(Favorite, user=request.user, book=book)
+            favorite.delete()
+            
+            return Response(
+                {'message': f'Book "{book.title}" deleted from favorite'}, 
+                status=status.HTTP_200_OK
+            )
+        except Favorite.DoesNotExist:
+            return Response(
+                {'error': 'This book was not in favorites'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class FavoriteToggleView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, book_id, *args, **kwargs):
+        try:
+            book = get_object_or_404(Book, id=book_id)
+            favorite, created = Favorite.objects.get_or_create(
+                user=request.user, 
+                book=book
+            )
+            
+            if created:
+                serializer = FavoriteListSerializer(favorite)
+                return Response(
+                    {
+                        'message': f'Книга "{book.title}" додана в улюблене',
+                        'action': 'added',
+                        'favorite': serializer.data
+                    }, 
+                    status=status.HTTP_201_CREATED
+                )
+            else:
+                favorite.delete()
+                return Response(
+                    {
+                        'message': f'Книга "{book.title}" видалена з улюбленого',
+                        'action': 'removed'
+                    }, 
+                    status=status.HTTP_200_OK
+                )
+        except Exception as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class BookListView(BookQuerysetMixin, ListAPIView):
@@ -135,6 +270,81 @@ class BookListView(BookQuerysetMixin, ListAPIView):
         }
         
         return Response(response_data)
+
+
+class BookRecommendedView(BookQuerysetMixin, ListAPIView):
+    serializer_class = BookListSerializer
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        genre = self.request.query_params.get('genre', None)
+        title = self.request.query_params.get('title', None)
+        search = self.request.query_params.get('search', None)
+        image = self.request.query_params.get('image', None)
+
+        if genre:
+            queryset = queryset.filter(genre__name__icontains=genre)
+                
+        if title:
+            queryset = queryset.filter(title__icontains=title)
+
+        if image:
+            if image.lower() in ['true', '1', 'yes']:
+                queryset = queryset.exclude(image__isnull=True).exclude(image='')
+            elif image.lower() in ['false', '0', 'no']:
+                queryset = queryset.filter(Q(image__isnull=True) | Q(image=''))
+            
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) | 
+                Q(description__icontains=search)
+            )
+        
+        return queryset
+    
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        count = queryset.count()
+        
+        if count == 0:
+            return Response({
+                'detail': 'No books found matching the criteria',
+                'active_filters': self._get_active_filters(request),
+                'total_count': 0
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        random_count = min(int(request.query_params.get('count', 4)), count)
+        
+        random_indices = random.sample(range(count), random_count)
+        
+        random_books = []
+        for index in random_indices:
+            book = queryset[index]
+            random_books.append(book)
+        
+        serializer = self.get_serializer(random_books, many=True)
+        
+        response_data = {
+            'count': random_count,
+            'total_count': count,
+            'active_filters': self._get_active_filters(request),
+            'results': serializer.data
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+    
+    def get_serializer(self, *args, **kwargs):
+        return self.serializer_class(*args, **kwargs)
+    
+    def _get_active_filters(self, request):
+        active_filters = {}
+        for param in ['genre', 'title', 'image', 'search', 'count']:
+            value = request.query_params.get(param)
+            if value:
+                active_filters[param] = value
+
+        return active_filters
 
 
 class BookDetailView(BookQuerysetMixin, RetrieveAPIView):

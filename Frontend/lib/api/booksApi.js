@@ -101,7 +101,7 @@ export const booksApi = createApi({
       providesTags: ["Book"],
     }),
     getFavorites: builder.query({
-      query: () => "/api/favorites/", // Update to match your actual backend endpoint
+      query: () => "/scraping/book_favorites/", // Update to match your actual backend endpoint
       providesTags: ["Favorites"],
       transformErrorResponse: (response) => {
         console.error("❌ Get Favorites API Error:", response)
@@ -110,7 +110,7 @@ export const booksApi = createApi({
     }),
     addToFavorites: builder.mutation({
       query: (bookId) => ({
-        url: `/api/favorites/add/${bookId}/`, // Update to match your actual backend endpoint
+        url: `/scraping/book_favorites_add/`, // Update to match your actual backend endpoint
         method: "POST",
       }),
       invalidatesTags: ["Favorites"],
@@ -121,7 +121,7 @@ export const booksApi = createApi({
     }),
     removeFromFavorites: builder.mutation({
       query: (bookId) => ({
-        url: `/api/favorites/remove/${bookId}/`, // Update to match your actual backend endpoint
+        url: `/scraping/book_favorites_remove/${bookId}/`, // Update to match your actual backend endpoint
         method: "DELETE",
       }),
       invalidatesTags: ["Favorites"],

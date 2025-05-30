@@ -1,7 +1,7 @@
 import os
 
 from rest_framework import serializers
-from .models import ScrapingLog, Book, Genre
+from .models import ScrapingLog, Book, Genre, Favorite
 
 class ScrapingLogSerializer(serializers.ModelSerializer):
     duration = serializers.SerializerMethodField()
@@ -20,6 +20,40 @@ class ScrapingLogSerializer(serializers.ModelSerializer):
             duration = obj.finished_at - obj.started_at
             return str(duration)
         return None
+
+class FavoriteBookSerializer(serializers.ModelSerializer):
+    genre_name = serializers.CharField(source='genre.name', read_only=True)
+    rating_display = serializers.CharField(read_only=True)
+    
+    class Meta:
+        model = Book
+        fields = [
+            'id', 'title', 'isbn', 'image', 'genre', 'genre_name', 
+            'description', 'price', 'rating', 'rating_display', 
+            'in_stock', 'availability'
+        ]
+
+class FavoriteListSerializer(serializers.ModelSerializer):
+    book = FavoriteBookSerializer(read_only=True)
+    
+    class Meta:
+        model = Favorite
+        fields = ['id', 'book', 'created_at']
+
+class FavoriteCreateSerializer(serializers.ModelSerializer):    
+    class Meta:
+        model = Favorite
+        fields = ['book']
+    
+    def create(self, validated_data):
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)
+    
+    def validate_book(self, value):
+        user = self.context['request'].user
+        if Favorite.objects.filter(user=user, book=value).exists():
+            raise serializers.ValidationError("This book is already in favorites")
+        return value
 
 class GenreSerializer(serializers.ModelSerializer):
     books_count = serializers.SerializerMethodField()
